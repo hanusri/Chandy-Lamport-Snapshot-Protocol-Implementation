@@ -8,6 +8,7 @@ import java.net.Socket;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Random;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Created by Srikanth on 6/2/2016.
@@ -18,12 +19,12 @@ public class Node implements Serializable {
     private int port;
     private transient HashMap<Integer, SendController> sendControllerMap;
     private ArrayList<Node> neighbours;
-    private boolean activeStatus;
+    private AtomicBoolean activeStatus;
     private int sentMessageCount;
 
     public Node(int nodeID) {
         this.nodeID = nodeID;
-        activeStatus = nodeID == ApplicationConstants.DEFAULTNODE_ACTIVE;
+        activeStatus = new AtomicBoolean(nodeID == ApplicationConstants.DEFAULTNODE_ACTIVE);
         sentMessageCount = 0;
     }
 
@@ -31,7 +32,7 @@ public class Node implements Serializable {
         this.nodeID = nodeID;
         this.ipAddress = ipAddress;
         this.port = port;
-        activeStatus = nodeID == ApplicationConstants.DEFAULTNODE_ACTIVE;
+        activeStatus = new AtomicBoolean(nodeID == ApplicationConstants.DEFAULTNODE_ACTIVE);
         sentMessageCount = 0;
     }
 
@@ -82,13 +83,13 @@ public class Node implements Serializable {
         if (sendControllerMap == null)
             sendControllerMap = new HashMap<>();
 
-        /*for (Integer key : NodeRunner.getNodeDictionary().keySet())
-            sendControllerMap.put(key, new SendController(NodeRunner.getNodeDictionary().get(key)));*/
+        for (Integer key : NodeRunner.getNodeDictionary().keySet())
+            sendControllerMap.put(key, new SendController(NodeRunner.getNodeDictionary().get(key)));
 
-        for (Integer key : NodeRunner.getNodeDictionary().keySet()) {
+        /*for (Integer key : NodeRunner.getNodeDictionary().keySet()) {
             Node neighbourNode = NodeRunner.getNodeDictionary().get(key);
             sendControllerMap.put(key, new SendController(neighbourNode.getIpAddress(), neighbourNode.getPort()));
-        }
+        }*/
     }
 
     public void initializeNode() {
@@ -96,7 +97,7 @@ public class Node implements Serializable {
         new Thread(new ListenerThread(this)).start();
         try {
             // Put the main thread in sleep for few seconds
-            Thread.sleep(30000);
+            Thread.sleep(ApplicationConstants.INITIAL_THREAD_DELAY);
             multicastMessages();
         } catch (InterruptedException ex) {
             ex.printStackTrace();
@@ -104,19 +105,27 @@ public class Node implements Serializable {
     }
 
     private void multicastMessages() {
-        if (this.activeStatus && (sentMessageCount < NodeRunner.getMaxMessages())) {
+        if (this.activeStatus.get() && (sentMessageCount < NodeRunner.getMaxMessages())) {
+            Message sendMessage;
+            StringBuilder message;
+            int messagePerActive;
             try {
-                int messagePerActive = getRandomMessageCount();
-                Message sendMessage;
-                StringBuilder message;
-                for (int i = 0; i < messagePerActive; i++) {
-                    message = new StringBuilder("Actual Message from " + getNodeID());
-                    sendMessage = new Message(message.toString(), this, ApplicationConstants.MESSAGE_ACTUAL);
-                    send(getRandomNeighbour(), sendMessage);
-                    sentMessageCount++;
-                    Thread.sleep(NodeRunner.getMinSendDelay());
+                synchronized (this) {
+                    messagePerActive = getRandomMessageCount();
                 }
-                activeStatus = false;
+
+                for (int i = 0; i < messagePerActive; i++) {
+                    synchronized (this) {
+                        message = new StringBuilder("Actual Message from " + getNodeID());
+                        sendMessage = new Message(message.toString(), this, ApplicationConstants.MESSAGE_ACTUAL);
+                        send(getRandomNeighbour(), sendMessage);
+                        sentMessageCount++;
+                        Thread.sleep(NodeRunner.getMinSendDelay());
+                    }
+                }
+                synchronized (this) {
+                    activeStatus.set(false);
+                }
                 System.out.println("Current Node " + getNodeID() + " active status is " + activeStatus);
             } catch (Exception ex) {
                 ex.printStackTrace();
@@ -125,8 +134,7 @@ public class Node implements Serializable {
     }
 
     private void send(Node destinationNode, Message sendMessage) {
-        SendController sendController = sendControllerMap.get(destinationNode.getNodeID());
-        sendController.send(sendMessage);
+        sendControllerMap.get(destinationNode.getNodeID()).send(sendMessage);
     }
 
     class ListenerThread implements Runnable {
@@ -146,29 +154,30 @@ public class Node implements Serializable {
                 System.out.println("Listening from Node " + getNodeID());
                 while (true) {
                     socket = serverSocket.accept();
-                    inputStream = new ObjectInputStream(socket.getInputStream());
-                    Message receivedMsg = (Message) inputStream.readObject();
-                    switch (receivedMsg.getMessageType()) {
-                        case ApplicationConstants.MESSAGE_ACTUAL: {
-                            currentNode.activeStatus = currentNode.sentMessageCount < NodeRunner.getMaxMessages();
-                            System.out.println("Current Node " + getNodeID() + " active status is " + currentNode.activeStatus);
-                            System.out.println("Received following message from " + receivedMsg.getSourceNode().getNodeID());
-                            System.out.println(receivedMsg.getMessage());
-                            // sending acknowledgement message back
-                            Message acknowledgementMessage = new Message("Message Acknowledged", currentNode,
-                                    ApplicationConstants.MESSAGE_ACKNOWLEDGEMENT);
-                            send(receivedMsg.getSourceNode(), acknowledgementMessage);
-                            // Receiving node starts sending messages
-                            multicastMessages();
-                            break;
-                        }
-                        case ApplicationConstants.MESSAGE_ACKNOWLEDGEMENT: {
-                            System.out.println("Received Acknowledgement from " + receivedMsg.getSourceNode().getNodeID());
-                            break;
-                        }
-                        case ApplicationConstants.Message_FINAL:{
-                            System.exit(0);
-                            break;
+                    synchronized (currentNode) {
+                        inputStream = new ObjectInputStream(socket.getInputStream());
+                        Message receivedMsg = (Message) inputStream.readObject();
+                        switch (receivedMsg.getMessageType()) {
+                            case ApplicationConstants.MESSAGE_ACTUAL: {
+                                currentNode.activeStatus.set(currentNode.sentMessageCount < NodeRunner.getMaxMessages());
+                                System.out.println("Current Node " + getNodeID() + " active status is " + currentNode.activeStatus);
+                                System.out.println(receivedMsg.getMessage());
+                                // sending acknowledgement message back
+                                Message acknowledgementMessage = new Message("Message Acknowledged", currentNode,
+                                        ApplicationConstants.MESSAGE_ACKNOWLEDGEMENT);
+                                send(receivedMsg.getSourceNode(), acknowledgementMessage);
+                                // Receiving node starts sending messages
+                                multicastMessages();
+                                break;
+                            }
+                            case ApplicationConstants.MESSAGE_ACKNOWLEDGEMENT: {
+                                System.out.println("Received Acknowledgement from " + receivedMsg.getSourceNode().getNodeID());
+                                break;
+                            }
+                            case ApplicationConstants.Message_FINAL: {
+                                System.exit(0);
+                                break;
+                            }
                         }
                     }
                 }

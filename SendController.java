@@ -1,7 +1,7 @@
 package utd.com;
 
-import java.io.IOException;
 import java.io.ObjectOutputStream;
+import java.io.OutputStream;
 import java.net.Socket;
 
 /**
@@ -11,49 +11,40 @@ public class SendController {
     public static final int SEND_SUCCESS = 1;
     public static final int SEND_FAILURE = 0;
     private final int MAXRETRIES = 10;
-    private String ipAddressToSend;
-    private int portToSend;
+    private Node destination;
+    private Socket socket;
+    private ObjectOutputStream outStream;
 
-    public SendController()
-    {
+    public SendController() {
 
     }
 
-    public SendController(String ipAddressToSend, int portToSend) {
-        this.ipAddressToSend = ipAddressToSend;
-        this.portToSend = portToSend;
+    public SendController(Node destination) {
+        this.destination = destination;
     }
 
-    public String getIpAddressToSend() {
-        return ipAddressToSend;
+    public Node getDestination() {
+        return destination;
     }
 
-    public void setIpAddressToSend(String ipAddressToSend) {
-        this.ipAddressToSend = ipAddressToSend;
-    }
-
-    public int getPortToSend() {
-        return portToSend;
-    }
-
-    public void setPortToSend(int portToSend) {
-        this.portToSend = portToSend;
+    public void setDestination(Node destination) {
+        this.destination = destination;
     }
 
     public void send(Message sendMessage) {
-        Socket socket = null;
-        ObjectOutputStream outStream = null;
+        //ObjectOutputStream outStream = null;
         try {
-            socket = new Socket(ipAddressToSend, portToSend);
-            outStream = new ObjectOutputStream(socket.getOutputStream());
-            outStream.writeObject(sendMessage);
-            outStream.flush();
-            socket.close();
-            Thread.sleep(1000);
-        } catch (IOException ex) {
-            ex.printStackTrace();
-        } catch (InterruptedException ex) {
+            synchronized (this) {
+                if (socket == null || true) {
+                    socket = new Socket(this.destination.getIpAddress(), this.destination.getPort());
+                }
+
+                outStream = new ObjectOutputStream(socket.getOutputStream());
+                outStream.writeObject(sendMessage);
+            }
+        } catch (Exception ex) {
             ex.printStackTrace();
         }
     }
 }
+
