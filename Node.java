@@ -21,11 +21,13 @@ public class Node implements Serializable {
     private ArrayList<Node> neighbours;
     private AtomicBoolean activeStatus;
     private int sentMessageCount;
+    private int[] vectorClock;
 
     public Node(int nodeID) {
         this.nodeID = nodeID;
         activeStatus = new AtomicBoolean(nodeID == ApplicationConstants.DEFAULTNODE_ACTIVE);
         sentMessageCount = 0;
+        vectorClock = new int[NodeRunner.getTotalNodes()];
     }
 
     public Node(int nodeID, String ipAddress, int port) {
@@ -34,6 +36,7 @@ public class Node implements Serializable {
         this.port = port;
         activeStatus = new AtomicBoolean(nodeID == ApplicationConstants.DEFAULTNODE_ACTIVE);
         sentMessageCount = 0;
+        vectorClock = new int[NodeRunner.getTotalNodes()];
     }
 
     public int getNodeID() {
@@ -65,6 +68,18 @@ public class Node implements Serializable {
         int difference = NodeRunner.getMaxPerActive() - NodeRunner.getMinPerActive() + 1;
         int randomNumber = randomGenerator.nextInt(difference);
         return NodeRunner.getMinPerActive() + randomNumber;
+    }
+
+    @Override
+    public String toString() {
+        StringBuilder sb = new StringBuilder("Node ID " + getNodeID() + " : [");
+        if (vectorClock != null) {
+            for (int i : vectorClock) {
+                sb.append(i + " ");
+            }
+        }
+        sb.append("]");
+        return sb.toString();
     }
 
     private Node getRandomNeighbour() {
@@ -110,23 +125,20 @@ public class Node implements Serializable {
             StringBuilder message;
             int messagePerActive;
             try {
-                synchronized (this) {
-                    messagePerActive = getRandomMessageCount();
-                }
-
+                messagePerActive = getRandomMessageCount();
+                System.out.println("Random Number Generated :" + messagePerActive);
                 for (int i = 0; i < messagePerActive; i++) {
-                    synchronized (this) {
-                        message = new StringBuilder("Actual Message from " + getNodeID());
-                        sendMessage = new Message(message.toString(), this, ApplicationConstants.MESSAGE_ACTUAL);
-                        send(getRandomNeighbour(), sendMessage);
-                        sentMessageCount++;
-                        Thread.sleep(NodeRunner.getMinSendDelay());
+                    message = new StringBuilder("Actual Message from " + getNodeID());
+                    synchronized (this.vectorClock) {
+                        this.vectorClock[this.getNodeID()]++;
                     }
+                    sendMessage = new ApplicationMessage(this.vectorClock, this);
+                    send(getRandomNeighbour(), sendMessage);
+                    sentMessageCount++;
+                    Thread.sleep(NodeRunner.getMinSendDelay());
                 }
-                synchronized (this) {
-                    activeStatus.set(false);
-                }
-                System.out.println("Current Node " + getNodeID() + " active status is " + activeStatus);
+                activeStatus.getAndSet(false);
+                System.out.println(this);
             } catch (Exception ex) {
                 ex.printStackTrace();
             }
@@ -154,32 +166,23 @@ public class Node implements Serializable {
                 System.out.println("Listening from Node " + getNodeID());
                 while (true) {
                     socket = serverSocket.accept();
-                    synchronized (currentNode) {
-                        inputStream = new ObjectInputStream(socket.getInputStream());
-                        Message receivedMsg = (Message) inputStream.readObject();
-                        switch (receivedMsg.getMessageType()) {
-                            case ApplicationConstants.MESSAGE_ACTUAL: {
-                                currentNode.activeStatus.set(currentNode.sentMessageCount < NodeRunner.getMaxMessages());
-                                System.out.println("Current Node " + getNodeID() + " active status is " + currentNode.activeStatus);
-                                System.out.println(receivedMsg.getMessage());
-                                // sending acknowledgement message back
-                                Message acknowledgementMessage = new Message("Message Acknowledged", currentNode,
-                                        ApplicationConstants.MESSAGE_ACKNOWLEDGEMENT);
-                                send(receivedMsg.getSourceNode(), acknowledgementMessage);
-                                // Receiving node starts sending messages
-                                multicastMessages();
-                                break;
+                    inputStream = new ObjectInputStream(socket.getInputStream());
+                    Message receivedMsg = (Message) inputStream.readObject();
+
+                    if (receivedMsg instanceof ApplicationMessage) {
+                        currentNode.activeStatus.getAndSet(currentNode.sentMessageCount < NodeRunner.getMaxMessages());
+                        ApplicationMessage receivedApplicationMessage = (ApplicationMessage) receivedMsg;
+                        synchronized (currentNode.vectorClock) {
+                            for (int i = 0; i < currentNode.vectorClock.length; i++) {
+                                currentNode.vectorClock[i] = Math.max(currentNode.vectorClock[i],
+                                        receivedApplicationMessage.getSourceNode().vectorClock[i]);
                             }
-                            case ApplicationConstants.MESSAGE_ACKNOWLEDGEMENT: {
-                                System.out.println("Received Acknowledgement from " + receivedMsg.getSourceNode().getNodeID());
-                                break;
-                            }
-                            case ApplicationConstants.Message_FINAL: {
-                                System.exit(0);
-                                break;
-                            }
+                            currentNode.vectorClock[currentNode.getNodeID()]++;
                         }
+                        System.out.println(currentNode);
+                        multicastMessages();
                     }
+
                 }
             } catch (IOException e) {
                 e.printStackTrace();

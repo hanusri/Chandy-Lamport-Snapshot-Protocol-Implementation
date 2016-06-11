@@ -13,15 +13,14 @@ import java.util.HashMap;
 public class NodeRunner {
     private static int totalNodes;
     private static int maxMessages;
-    private static HashMap<Integer,Node> nodeDictionary;
+    private static HashMap<Integer, Node> nodeDictionary;
     private static int minPerActive;
     private static int maxPerActive;
     private static int minSendDelay;
     private static int snapShotDelay;
 
 
-    public NodeRunner()
-    {
+    public NodeRunner() {
         nodeDictionary = new HashMap<>();
     }
 
@@ -53,8 +52,7 @@ public class NodeRunner {
         return nodeDictionary;
     }
 
-    private static ArrayList<ArrayList<Integer>> readFile(String fileName) throws IOException
-    {
+    private static ArrayList<ArrayList<Integer>> readFile(String fileName) throws IOException {
         File file = new File(fileName);
         System.out.println(file.getAbsoluteFile());
         FileReader fileReader = new FileReader(file);
@@ -64,46 +62,40 @@ public class NodeRunner {
         int nodeCounter = 0;
         ArrayList<ArrayList<Integer>> neighbourList = new ArrayList<>();
 
-        while((newLine = bufferedFile.readLine()) != null)
-        {
+        while ((newLine = bufferedFile.readLine()) != null) {
             // Comment line;Skip it
-            if(newLine.startsWith(ApplicationConstants.COMMENT_INDICATOR))
+            if (newLine.startsWith(ApplicationConstants.COMMENT_INDICATOR))
                 continue;
             // Blank line indicates end of section
-            if(newLine.isEmpty())
-            {
+            if (newLine.isEmpty()) {
                 fileSection++;
                 continue;
             }
 
             String[] lineList = newLine.split("\\s+");
-            if(fileSection == 1)
-            {
+            if (fileSection == 1) {
                 totalNodes = Integer.parseInt(lineList[0]);
                 minPerActive = Integer.parseInt(lineList[1]);
-                maxPerActive  = Integer.parseInt(lineList[2]);
+                maxPerActive = Integer.parseInt(lineList[2]);
                 minSendDelay = Integer.parseInt(lineList[3]);
                 snapShotDelay = Integer.parseInt(lineList[4]);
                 maxMessages = Integer.parseInt(lineList[5]);
             }
 
-            if(fileSection == 2)
-            {
-                if(nodeDictionary == null)
+            if (fileSection == 2) {
+                if (nodeDictionary == null)
                     nodeDictionary = new HashMap<>();
 
                 int nodeID = Integer.parseInt(lineList[0]);
-                Node newNode = new Node(nodeID,lineList[1],Integer.parseInt(lineList[2]));
-                nodeDictionary.put(nodeID,newNode);
+                Node newNode = new Node(nodeID, lineList[1], Integer.parseInt(lineList[2]));
+                nodeDictionary.put(nodeID, newNode);
             }
 
-            if(fileSection == 3)
-            {
+            if (fileSection == 3) {
                 int i = 0;
                 String newStringValue = lineList[i];
                 ArrayList<Integer> neighbours = new ArrayList<>();
-                while(!newStringValue.startsWith("#"))
-                {
+                while (!newStringValue.startsWith("#")) {
                     neighbours.add(Integer.parseInt(newStringValue));
                     newStringValue = lineList[++i];
                 }
@@ -129,8 +121,7 @@ public class NodeRunner {
             // Load its neighbours
             ArrayList<Node> neighbourNodes = new ArrayList<>();
             ArrayList<Integer> neighbours = neighboursList.get(currentNodeId);
-            for(Integer i : neighbours)
-            {
+            for (Integer i : neighbours) {
                 Node neighbour = nodeDictionary.get(i);
                 neighbourNodes.add(neighbour);
             }
@@ -140,8 +131,7 @@ public class NodeRunner {
             currentNode.setUpSendControllerMap();
             currentNode.initializeNode();
 
-        }catch(Exception ex)
-        {
+        } catch (Exception ex) {
             ex.printStackTrace();
         }
     }

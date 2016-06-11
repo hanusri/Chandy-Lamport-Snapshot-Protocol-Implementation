@@ -12,8 +12,6 @@ public class SendController {
     public static final int SEND_FAILURE = 0;
     private final int MAXRETRIES = 10;
     private Node destination;
-    private Socket socket;
-    private ObjectOutputStream outStream;
 
     public SendController() {
 
@@ -32,16 +30,12 @@ public class SendController {
     }
 
     public void send(Message sendMessage) {
-        //ObjectOutputStream outStream = null;
         try {
-            synchronized (this) {
-                if (socket == null || true) {
-                    socket = new Socket(this.destination.getIpAddress(), this.destination.getPort());
-                }
-
-                outStream = new ObjectOutputStream(socket.getOutputStream());
-                outStream.writeObject(sendMessage);
-            }
+            Socket socket = new Socket(this.destination.getIpAddress(), this.destination.getPort());
+            ObjectOutputStream outStream = new ObjectOutputStream(socket.getOutputStream());
+            outStream.writeObject(sendMessage);
+            outStream.close();
+            socket.close();
         } catch (Exception ex) {
             ex.printStackTrace();
         }

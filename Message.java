@@ -8,17 +8,16 @@ import java.io.Serializable;
 public class Message implements Serializable {
     private String message;
     private Node sourceNode;
-    private String messageType;
 
-    public Message()
-    {
+
+    public Message() {
 
     }
 
-    public Message(String message, Node sourceNode, String messageType) {
+    public Message(String message, Node sourceNode) {
         this.message = message;
         this.sourceNode = sourceNode;
-        this.messageType = messageType;
+
     }
 
     public String getMessage() {
@@ -36,12 +35,20 @@ public class Message implements Serializable {
     public void setSourceNode(Node sourceNode) {
         this.sourceNode = sourceNode;
     }
+}
 
-    public String getMessageType() {
-        return messageType;
+class ApplicationMessage extends Message implements Serializable {
+    int[] messageVector;
+
+    public ApplicationMessage() {
+        super();
+        this.messageVector = new int[NodeRunner.getTotalNodes()];
     }
 
-    public void setMessageType(String messageType) {
-        this.messageType = messageType;
+    public ApplicationMessage(int[] messageVector, Node sourceNode)
+    {
+        this.messageVector = new int[NodeRunner.getTotalNodes()];
+        System.arraycopy(messageVector,0,this.messageVector,0,messageVector.length);
+        this.setSourceNode(sourceNode);
     }
 }
