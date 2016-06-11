@@ -1,6 +1,9 @@
 package utd.com;
 
+import jdk.nashorn.internal.runtime.FunctionInitializer;
+
 import java.io.Serializable;
+import java.util.ArrayList;
 
 /**
  * Created by Srikanth on 6/2/2016.
@@ -38,17 +41,46 @@ public class Message implements Serializable {
 }
 
 class ApplicationMessage extends Message implements Serializable {
-    int[] messageVector;
+    int[] messageClock;
 
     public ApplicationMessage() {
         super();
-        this.messageVector = new int[NodeRunner.getTotalNodes()];
+        this.messageClock = new int[NodeRunner.getTotalNodes()];
     }
 
-    public ApplicationMessage(int[] messageVector, Node sourceNode)
-    {
-        this.messageVector = new int[NodeRunner.getTotalNodes()];
-        System.arraycopy(messageVector,0,this.messageVector,0,messageVector.length);
+    public ApplicationMessage(int[] messageClock, Node sourceNode) {
+        this.messageClock = new int[NodeRunner.getTotalNodes()];
+        System.arraycopy(messageClock, 0, this.messageClock, 0, messageClock.length);
         this.setSourceNode(sourceNode);
     }
 }
+
+class MarkerMessage extends Message implements Serializable {
+    public MarkerMessage() {
+        super();
+    }
+}
+
+class FinishMessage extends Message implements Serializable {
+    public FinishMessage() {
+        super();
+    }
+}
+
+class SnapshotMessage extends Message implements Serializable {
+    private LocalState localState;
+    private ArrayList<ChannelState> channelStates;
+
+    public SnapshotMessage() {
+        super();
+        localState = new LocalState();
+        channelStates = new ArrayList<>();
+    }
+
+    public SnapshotMessage(LocalState applicationState, ArrayList<ChannelState> channelStates, Node sourceNode) {
+        this.localState = applicationState;
+        this.channelStates = channelStates;
+        this.setSourceNode(sourceNode);
+    }
+}
+

@@ -20,14 +20,22 @@ public class Node implements Serializable {
     private transient HashMap<Integer, SendController> sendControllerMap;
     private ArrayList<Node> neighbours;
     private AtomicBoolean activeStatus;
-    private int sentMessageCount;
-    private int[] vectorClock;
+    private transient int sentMessageCount;
+    private int[] applicationClock;
+    private transient Color logStatus;
+    private LocalState localState;
+    private ArrayList<ChannelState> channelStates;
+    private GlobalState globalState;
 
     public Node(int nodeID) {
         this.nodeID = nodeID;
         activeStatus = new AtomicBoolean(nodeID == ApplicationConstants.DEFAULTNODE_ACTIVE);
         sentMessageCount = 0;
-        vectorClock = new int[NodeRunner.getTotalNodes()];
+        applicationClock = new int[NodeRunner.getTotalNodes()];
+        logStatus = Color.BLUE;
+        localState = new LocalState();
+        channelStates = new ArrayList<>();
+        globalState = new GlobalState();
     }
 
     public Node(int nodeID, String ipAddress, int port) {
@@ -36,7 +44,11 @@ public class Node implements Serializable {
         this.port = port;
         activeStatus = new AtomicBoolean(nodeID == ApplicationConstants.DEFAULTNODE_ACTIVE);
         sentMessageCount = 0;
-        vectorClock = new int[NodeRunner.getTotalNodes()];
+        applicationClock = new int[NodeRunner.getTotalNodes()];
+        logStatus = Color.BLUE;
+        localState = new LocalState();
+        channelStates = new ArrayList<>();
+        globalState = new GlobalState();
     }
 
     public int getNodeID() {
@@ -73,8 +85,8 @@ public class Node implements Serializable {
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder("Node ID " + getNodeID() + " : [");
-        if (vectorClock != null) {
-            for (int i : vectorClock) {
+        if (applicationClock != null) {
+            for (int i : applicationClock) {
                 sb.append(i + " ");
             }
         }
@@ -100,12 +112,8 @@ public class Node implements Serializable {
 
         for (Integer key : NodeRunner.getNodeDictionary().keySet())
             sendControllerMap.put(key, new SendController(NodeRunner.getNodeDictionary().get(key)));
-
-        /*for (Integer key : NodeRunner.getNodeDictionary().keySet()) {
-            Node neighbourNode = NodeRunner.getNodeDictionary().get(key);
-            sendControllerMap.put(key, new SendController(neighbourNode.getIpAddress(), neighbourNode.getPort()));
-        }*/
     }
+
 
     public void initializeNode() {
         // Start Listening thread
@@ -129,10 +137,10 @@ public class Node implements Serializable {
                 System.out.println("Random Number Generated :" + messagePerActive);
                 for (int i = 0; i < messagePerActive; i++) {
                     message = new StringBuilder("Actual Message from " + getNodeID());
-                    synchronized (this.vectorClock) {
-                        this.vectorClock[this.getNodeID()]++;
+                    synchronized (this.applicationClock) {
+                        this.applicationClock[this.getNodeID()]++;
                     }
-                    sendMessage = new ApplicationMessage(this.vectorClock, this);
+                    sendMessage = new ApplicationMessage(this.applicationClock, this);
                     send(getRandomNeighbour(), sendMessage);
                     sentMessageCount++;
                     Thread.sleep(NodeRunner.getMinSendDelay());
@@ -172,12 +180,12 @@ public class Node implements Serializable {
                     if (receivedMsg instanceof ApplicationMessage) {
                         currentNode.activeStatus.getAndSet(currentNode.sentMessageCount < NodeRunner.getMaxMessages());
                         ApplicationMessage receivedApplicationMessage = (ApplicationMessage) receivedMsg;
-                        synchronized (currentNode.vectorClock) {
-                            for (int i = 0; i < currentNode.vectorClock.length; i++) {
-                                currentNode.vectorClock[i] = Math.max(currentNode.vectorClock[i],
-                                        receivedApplicationMessage.getSourceNode().vectorClock[i]);
+                        synchronized (currentNode.applicationClock) {
+                            for (int i = 0; i < currentNode.applicationClock.length; i++) {
+                                currentNode.applicationClock[i] = Math.max(currentNode.applicationClock[i],
+                                        receivedApplicationMessage.getSourceNode().applicationClock[i]);
                             }
-                            currentNode.vectorClock[currentNode.getNodeID()]++;
+                            currentNode.applicationClock[currentNode.getNodeID()]++;
                         }
                         System.out.println(currentNode);
                         multicastMessages();
@@ -200,4 +208,9 @@ public class Node implements Serializable {
             }
         }
     }
+}
+
+enum Color {
+    BLUE,
+    RED
 }
