@@ -17,6 +17,7 @@ public class Node implements Serializable {
     private int nodeID;
     private String ipAddress;
     private int port;
+    private Node parentNode;
     private transient HashMap<Integer, SendController> sendControllerMap;
     private ArrayList<Node> neighbours;
     private AtomicBoolean activeStatus;
@@ -26,6 +27,7 @@ public class Node implements Serializable {
     private LocalState localState;
     private ArrayList<ChannelState> channelStates;
     private GlobalState globalState;
+    private HashMap<Integer,Boolean> logMap;
 
     public Node(int nodeID) {
         this.nodeID = nodeID;
@@ -36,6 +38,7 @@ public class Node implements Serializable {
         localState = new LocalState();
         channelStates = new ArrayList<>();
         globalState = new GlobalState();
+        logMap = new HashMap<>();
     }
 
     public Node(int nodeID, String ipAddress, int port) {
@@ -49,6 +52,7 @@ public class Node implements Serializable {
         localState = new LocalState();
         channelStates = new ArrayList<>();
         globalState = new GlobalState();
+        logMap = new HashMap<>();
     }
 
     public int getNodeID() {
@@ -73,6 +77,14 @@ public class Node implements Serializable {
 
     public void setPort(int port) {
         this.port = port;
+    }
+
+    public Node getParentNode() {
+        return parentNode;
+    }
+
+    public void setParentNode(Node parentNode) {
+        this.parentNode = parentNode;
     }
 
     private int getRandomMessageCount() {
@@ -106,12 +118,14 @@ public class Node implements Serializable {
         this.neighbours = neighbours;
     }
 
-    public void setUpSendControllerMap() {
+    public void setUpNeighbourMap() {
         if (sendControllerMap == null)
             sendControllerMap = new HashMap<>();
 
-        for (Integer key : NodeRunner.getNodeDictionary().keySet())
+        for (Integer key : NodeRunner.getNodeDictionary().keySet()) {
             sendControllerMap.put(key, new SendController(NodeRunner.getNodeDictionary().get(key)));
+            logMap.put(key,false);
+        }
     }
 
 
@@ -121,13 +135,13 @@ public class Node implements Serializable {
         try {
             // Put the main thread in sleep for few seconds
             Thread.sleep(ApplicationConstants.INITIAL_THREAD_DELAY);
-            multicastMessages();
+            sendApplicationMessages();
         } catch (InterruptedException ex) {
             ex.printStackTrace();
         }
     }
 
-    private void multicastMessages() {
+    private void sendApplicationMessages() {
         if (this.activeStatus.get() && (sentMessageCount < NodeRunner.getMaxMessages())) {
             Message sendMessage;
             StringBuilder message;
@@ -188,7 +202,7 @@ public class Node implements Serializable {
                             currentNode.applicationClock[currentNode.getNodeID()]++;
                         }
                         System.out.println(currentNode);
-                        multicastMessages();
+                        sendApplicationMessages();
                     }
 
                 }

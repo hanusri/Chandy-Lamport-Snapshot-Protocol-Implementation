@@ -4,8 +4,7 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.*;
 
 /**
  * Created by Srikanth on 6/2/2016.
@@ -54,7 +53,6 @@ public class NodeRunner {
 
     private static ArrayList<ArrayList<Integer>> readFile(String fileName) throws IOException {
         File file = new File(fileName);
-        System.out.println(file.getAbsoluteFile());
         FileReader fileReader = new FileReader(file);
         BufferedReader bufferedFile = new BufferedReader(fileReader);
         String newLine = null;
@@ -102,8 +100,35 @@ public class NodeRunner {
                 neighbourList.add(neighbours);
             }
         }
+        // build spanning tree for converge cast
+        buildSpanningTree(neighbourList);
 
         return neighbourList;
+    }
+
+    private static void buildSpanningTree(ArrayList<ArrayList<Integer>> neighbourList) {
+        if (nodeDictionary != null && nodeDictionary.size() != 0) {
+            boolean[] visited = new boolean[totalNodes];
+            Arrays.fill(visited, false);
+            Queue<Integer> queue = new LinkedList<Integer>();
+            queue.add(0);
+            visited[0] = true;
+            while (!queue.isEmpty()) {
+                int nodeId = queue.remove();
+                Node parent = nodeDictionary.get(nodeId);
+                ArrayList<Integer> neighbours = neighbourList.get(nodeId);
+                if (neighbours != null && neighbours.size() > 0) {
+                    for (Integer neighbourId : neighbours) {
+                        if (!visited[neighbourId]) {
+                            Node neighbour = nodeDictionary.get(neighbourId);
+                            neighbour.setParentNode(parent);
+                            visited[neighbourId] = true;
+                        }
+                    }
+                }
+            }
+
+        }
     }
 
     public static void main(String[] args) {
@@ -121,6 +146,7 @@ public class NodeRunner {
             // Load its neighbours
             ArrayList<Node> neighbourNodes = new ArrayList<>();
             ArrayList<Integer> neighbours = neighboursList.get(currentNodeId);
+
             for (Integer i : neighbours) {
                 Node neighbour = nodeDictionary.get(i);
                 neighbourNodes.add(neighbour);
@@ -128,7 +154,7 @@ public class NodeRunner {
             currentNode.setNodeNeighbour(neighbourNodes);
 
             // set up current node; close socket is pending
-            currentNode.setUpSendControllerMap();
+            currentNode.setUpNeighbourMap();
             currentNode.initializeNode();
 
         } catch (Exception ex) {

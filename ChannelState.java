@@ -7,6 +7,8 @@ import java.io.Serializable;
  */
 public class ChannelState implements Serializable {
     private Node sourceNode;
+    private Node receiveNode;
+
     private int[] channelClock;
 
     public ChannelState() {
@@ -27,5 +29,13 @@ public class ChannelState implements Serializable {
 
     public void setChannelClock(int[] channelClock) {
         System.arraycopy(channelClock, 0, this.channelClock, 0, channelClock.length);
+    }
+
+    public Node getReceiveNode() {
+        return receiveNode;
+    }
+
+    public void setReceiveNode(Node receiveNode) {
+        this.receiveNode = receiveNode;
     }
 }
