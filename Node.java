@@ -29,6 +29,7 @@ public class Node implements Serializable {
     private GlobalState globalState;
     private HashMap<Integer, Boolean> logMap;
 
+    //region Constructors
     public Node(int nodeID) {
         this.nodeID = nodeID;
         activeStatus = nodeID == ApplicationConstants.DEFAULTNODE_ACTIVE;
@@ -54,7 +55,9 @@ public class Node implements Serializable {
         globalState = new GlobalState();
         logMap = new HashMap<>();
     }
+    //endregion
 
+    //region Getters and Setters
     public int getNodeID() {
         return nodeID;
     }
@@ -90,7 +93,9 @@ public class Node implements Serializable {
     public ArrayList<Node> getNeighbours() {
         return neighbours;
     }
+    //endregion
 
+    //region Private Methods
     private int getRandomMessageCount() {
         Random randomGenerator = new Random();
         int difference = NodeRunner.getMaxPerActive() - NodeRunner.getMinPerActive() + 1;
@@ -98,53 +103,12 @@ public class Node implements Serializable {
         return NodeRunner.getMinPerActive() + randomNumber;
     }
 
-    @Override
-    public String toString() {
-        StringBuilder sb = new StringBuilder("Node ID " + getNodeID() + " : [");
-        if (applicationClock != null) {
-            for (int i : applicationClock) {
-                sb.append(i + " ");
-            }
-        }
-        sb.append("]");
-        return sb.toString();
-    }
-
     private Node getRandomNeighbour() {
         return neighbours.get(new Random().nextInt(neighbours.size()));
     }
+    //endregion
 
-    public void setNodeNeighbour(ArrayList<Node> neighbours) {
-        this.neighbours = neighbours;
-    }
-
-    public void setUpNeighbourMap() {
-        if (sendControllerMap == null)
-            sendControllerMap = new HashMap<>();
-
-        for (Integer key : NodeRunner.getNodeDictionary().keySet()) {
-            sendControllerMap.put(key, new SendController(NodeRunner.getNodeDictionary().get(key)));
-            logMap.put(key, false);
-        }
-    }
-
-    public void initializeNode() {
-        // Start Listening thread
-        new Thread(new ListenerThread()).start();
-
-        try {
-            // Put the main thread in sleep for few seconds
-            Thread.sleep(ApplicationConstants.INITIAL_THREAD_DELAY);
-            if (nodeID == ApplicationConstants.DEFAULTNODE_ACTIVE) {
-                sendApplicationMessages();
-                new Thread(new ChandyLamportThread()).start();
-            }
-
-        } catch (InterruptedException ex) {
-            ex.printStackTrace();
-        }
-    }
-
+    //region Public Methods
     private void sendApplicationMessages() {
         Message sendMessage;
         StringBuilder message;
@@ -180,6 +144,51 @@ public class Node implements Serializable {
         sendControllerMap.get(destinationNode.getNodeID()).send(sendMessage);
     }
 
+    public void setNodeNeighbour(ArrayList<Node> neighbours) {
+        this.neighbours = neighbours;
+    }
+
+    public void setUpNeighbourMap() {
+        if (sendControllerMap == null)
+            sendControllerMap = new HashMap<>();
+
+        for (Integer key : NodeRunner.getNodeDictionary().keySet()) {
+            sendControllerMap.put(key, new SendController(NodeRunner.getNodeDictionary().get(key)));
+            logMap.put(key, false);
+        }
+    }
+
+    public void initializeNode() {
+        // Start Listening thread
+        new Thread(new ListenerThread()).start();
+
+        try {
+            // Put the main thread in sleep for few seconds
+            Thread.sleep(ApplicationConstants.INITIAL_THREAD_DELAY);
+            if (nodeID == ApplicationConstants.DEFAULTNODE_ACTIVE) {
+                sendApplicationMessages();
+                new Thread(new ChandyLamportThread()).start();
+            }
+
+        } catch (InterruptedException ex) {
+            ex.printStackTrace();
+        }
+    }
+
+    @Override
+    public String toString() {
+        StringBuilder sb = new StringBuilder("Node ID " + getNodeID() + " : [");
+        if (applicationClock != null) {
+            for (int i : applicationClock) {
+                sb.append(i + " ");
+            }
+        }
+        sb.append("]");
+        return sb.toString();
+    }
+    //endregion
+
+    //region Threads
     class ListenerThread implements Runnable {
         private Socket socket;
         private ServerSocket serverSocket;
@@ -238,6 +247,8 @@ public class Node implements Serializable {
                     if (Node.this.activeStatus && Node.this.sentMessageCount < NodeRunner.getMaxMessages())
                         sendApplicationMessages();
                 }
+
+                if()
             } catch (Exception ex) {
                 ex.printStackTrace();
             }
@@ -251,6 +262,7 @@ public class Node implements Serializable {
 
         }
     }
+    //endregion
 }
 
 enum Color {
