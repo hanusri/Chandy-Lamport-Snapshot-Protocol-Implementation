@@ -20,18 +20,18 @@ public class Node implements Serializable {
     private Node parentNode;
     private transient HashMap<Integer, SendController> sendControllerMap;
     private ArrayList<Node> neighbours;
-    private AtomicBoolean activeStatus;
+    private Boolean activeStatus;
     private transient int sentMessageCount;
     private int[] applicationClock;
     private transient Color logStatus;
     private LocalState localState;
     private ArrayList<ChannelState> channelStates;
     private GlobalState globalState;
-    private HashMap<Integer,Boolean> logMap;
+    private HashMap<Integer, Boolean> logMap;
 
     public Node(int nodeID) {
         this.nodeID = nodeID;
-        activeStatus = new AtomicBoolean(nodeID == ApplicationConstants.DEFAULTNODE_ACTIVE);
+        activeStatus = nodeID == ApplicationConstants.DEFAULTNODE_ACTIVE;
         sentMessageCount = 0;
         applicationClock = new int[NodeRunner.getTotalNodes()];
         logStatus = Color.BLUE;
@@ -45,7 +45,7 @@ public class Node implements Serializable {
         this.nodeID = nodeID;
         this.ipAddress = ipAddress;
         this.port = port;
-        activeStatus = new AtomicBoolean(nodeID == ApplicationConstants.DEFAULTNODE_ACTIVE);
+        activeStatus = nodeID == ApplicationConstants.DEFAULTNODE_ACTIVE;
         sentMessageCount = 0;
         applicationClock = new int[NodeRunner.getTotalNodes()];
         logStatus = Color.BLUE;
@@ -87,6 +87,10 @@ public class Node implements Serializable {
         this.parentNode = parentNode;
     }
 
+    public ArrayList<Node> getNeighbours() {
+        return neighbours;
+    }
+
     private int getRandomMessageCount() {
         Random randomGenerator = new Random();
         int difference = NodeRunner.getMaxPerActive() - NodeRunner.getMinPerActive() + 1;
@@ -110,10 +114,6 @@ public class Node implements Serializable {
         return neighbours.get(new Random().nextInt(neighbours.size()));
     }
 
-    public ArrayList<Node> getNeighbours() {
-        return neighbours;
-    }
-
     public void setNodeNeighbour(ArrayList<Node> neighbours) {
         this.neighbours = neighbours;
     }
@@ -124,47 +124,56 @@ public class Node implements Serializable {
 
         for (Integer key : NodeRunner.getNodeDictionary().keySet()) {
             sendControllerMap.put(key, new SendController(NodeRunner.getNodeDictionary().get(key)));
-            logMap.put(key,false);
+            logMap.put(key, false);
         }
     }
 
-
     public void initializeNode() {
         // Start Listening thread
-        new Thread(new ListenerThread(this)).start();
+        new Thread(new ListenerThread()).start();
+
         try {
             // Put the main thread in sleep for few seconds
             Thread.sleep(ApplicationConstants.INITIAL_THREAD_DELAY);
-            sendApplicationMessages();
+            if (nodeID == ApplicationConstants.DEFAULTNODE_ACTIVE) {
+                sendApplicationMessages();
+                new Thread(new ChandyLamportThread()).start();
+            }
+
         } catch (InterruptedException ex) {
             ex.printStackTrace();
         }
     }
 
     private void sendApplicationMessages() {
-        if (this.activeStatus.get() && (sentMessageCount < NodeRunner.getMaxMessages())) {
-            Message sendMessage;
-            StringBuilder message;
-            int messagePerActive;
-            try {
+        Message sendMessage;
+        StringBuilder message;
+        int messagePerActive;
+        try {
+            synchronized (this) {
                 messagePerActive = getRandomMessageCount();
-                System.out.println("Random Number Generated :" + messagePerActive);
-                for (int i = 0; i < messagePerActive; i++) {
-                    message = new StringBuilder("Actual Message from " + getNodeID());
-                    synchronized (this.applicationClock) {
-                        this.applicationClock[this.getNodeID()]++;
-                    }
-                    sendMessage = new ApplicationMessage(this.applicationClock, this);
-                    send(getRandomNeighbour(), sendMessage);
-                    sentMessageCount++;
-                    Thread.sleep(NodeRunner.getMinSendDelay());
-                }
-                activeStatus.getAndSet(false);
-                System.out.println(this);
-            } catch (Exception ex) {
-                ex.printStackTrace();
             }
+
+            for (int i = 0; i < messagePerActive; i++) {
+                synchronized (this) {
+                    if (this.activeStatus && (sentMessageCount < NodeRunner.getMaxMessages())) {
+                        this.applicationClock[this.getNodeID()]++;
+                        sendMessage = new ApplicationMessage(this.applicationClock, this);
+                        send(getRandomNeighbour(), sendMessage);
+                        sentMessageCount++;
+                    } else
+                        break;
+                }
+                Thread.sleep(NodeRunner.getMinSendDelay());
+            }
+            synchronized (this) {
+                activeStatus = false;
+            }
+            System.out.println(this);
+        } catch (Exception ex) {
+            ex.printStackTrace();
         }
+
     }
 
     private void send(Node destinationNode, Message sendMessage) {
@@ -175,41 +184,22 @@ public class Node implements Serializable {
         private Socket socket;
         private ServerSocket serverSocket;
         private ObjectInputStream inputStream;
-        private Node currentNode;
 
-        public ListenerThread(Node currentNode) {
-            this.currentNode = currentNode;
+
+        public ListenerThread() {
+
         }
 
         @Override
         public void run() {
             try {
                 serverSocket = new ServerSocket(getPort());
-                System.out.println("Listening from Node " + getNodeID());
                 while (true) {
                     socket = serverSocket.accept();
                     inputStream = new ObjectInputStream(socket.getInputStream());
                     Message receivedMsg = (Message) inputStream.readObject();
-
-                    if (receivedMsg instanceof ApplicationMessage) {
-                        currentNode.activeStatus.getAndSet(currentNode.sentMessageCount < NodeRunner.getMaxMessages());
-                        ApplicationMessage receivedApplicationMessage = (ApplicationMessage) receivedMsg;
-                        synchronized (currentNode.applicationClock) {
-                            for (int i = 0; i < currentNode.applicationClock.length; i++) {
-                                currentNode.applicationClock[i] = Math.max(currentNode.applicationClock[i],
-                                        receivedApplicationMessage.getSourceNode().applicationClock[i]);
-                            }
-                            currentNode.applicationClock[currentNode.getNodeID()]++;
-                        }
-                        System.out.println(currentNode);
-                        sendApplicationMessages();
-                    }
-
+                    new Thread(new MessageProcessingThread(receivedMsg)).start();
                 }
-            } catch (IOException e) {
-                e.printStackTrace();
-            } catch (ClassNotFoundException e) {
-                e.printStackTrace();
             } catch (Exception ex) {
                 ex.printStackTrace();
             } finally {
@@ -220,6 +210,45 @@ public class Node implements Serializable {
                     e.printStackTrace();
                 }
             }
+        }
+    }
+
+    class MessageProcessingThread implements Runnable {
+        private Message incomingMessage;
+
+        public MessageProcessingThread(Message incomingMessage) {
+            this.incomingMessage = incomingMessage;
+        }
+
+        @Override
+        public void run() {
+            try {
+                if (incomingMessage instanceof ApplicationMessage) {
+                    synchronized (Node.this) {
+                        Node.this.activeStatus = (Node.this.sentMessageCount < NodeRunner.getMaxMessages());
+                    }
+                    ApplicationMessage applicationMessage = (ApplicationMessage) incomingMessage;
+                    synchronized (Node.this) {
+                        for (int i = 0; i < Node.this.applicationClock.length; i++) {
+                            Node.this.applicationClock[i] = Math.max(Node.this.applicationClock[i],
+                                    applicationMessage.getSourceNode().applicationClock[i]);
+                        }
+                        Node.this.applicationClock[Node.this.getNodeID()]++;
+                    }
+                    if (Node.this.activeStatus && Node.this.sentMessageCount < NodeRunner.getMaxMessages())
+                        sendApplicationMessages();
+                }
+            } catch (Exception ex) {
+                ex.printStackTrace();
+            }
+        }
+    }
+
+    class ChandyLamportThread implements Runnable {
+
+        @Override
+        public void run() {
+
         }
     }
 }
