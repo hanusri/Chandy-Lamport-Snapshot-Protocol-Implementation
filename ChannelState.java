@@ -15,6 +15,13 @@ public class ChannelState implements Serializable {
         channelClock = new int[NodeRunner.getTotalNodes()];
     }
 
+    public ChannelState(Node sourceNode, Node receiveNode, int[] channelClock) {
+        this.channelClock = new int[NodeRunner.getTotalNodes()];
+        setSourceNode(sourceNode);
+        setReceiveNode(receiveNode);
+        setChannelClock(channelClock);
+    }
+
     public Node getSourceNode() {
         return sourceNode;
     }

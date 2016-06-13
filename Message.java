@@ -59,6 +59,10 @@ class MarkerMessage extends Message implements Serializable {
     public MarkerMessage() {
         super();
     }
+
+    public MarkerMessage(Node sourceNode) {
+        super("", sourceNode);
+    }
 }
 
 class FinishMessage extends Message implements Serializable {
@@ -81,6 +85,22 @@ class SnapshotMessage extends Message implements Serializable {
         this.localState = applicationState;
         this.channelStates = channelStates;
         this.setSourceNode(sourceNode);
+    }
+
+    public LocalState getLocalState() {
+        return localState;
+    }
+
+    public void setLocalState(LocalState localState) {
+        this.localState = localState;
+    }
+
+    public ArrayList<ChannelState> getChannelStates() {
+        return channelStates;
+    }
+
+    public void setChannelStates(ArrayList<ChannelState> channelStates) {
+        this.channelStates = channelStates;
     }
 }
 

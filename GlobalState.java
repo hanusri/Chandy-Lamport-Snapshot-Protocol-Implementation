@@ -30,4 +30,18 @@ public class GlobalState implements Serializable {
     public void setChannelStates(ArrayList<ChannelState> channelStates) {
         this.channelStates = channelStates;
     }
+
+    public void addChannelState(ChannelState channelState) {
+        if (channelStates == null)
+            channelStates = new ArrayList<>();
+
+        channelStates.add(channelState);
+    }
+
+    public void addLocalState(LocalState localState) {
+        if (localStates == null)
+            localStates = new ArrayList<>();
+
+        localStates.add(localState);
+    }
 }

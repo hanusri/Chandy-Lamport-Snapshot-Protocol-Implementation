@@ -108,6 +108,85 @@ public class Node implements Serializable {
     }
     //endregion
 
+    //region Chandy Lamport Protocol Methods
+    private boolean isAllMarkerMessageReceived() {
+        for (Boolean value : logMap.values()) {
+            if (!value)
+                return value;
+        }
+        return true;
+    }
+
+    private void startChandyLamportProtocol() {
+        processMarkerMessage(null);
+    }
+
+    private void processMarkerMessage(MarkerMessage receivedMarker) {
+        synchronized (this) {
+            if (this.logStatus == Color.BLUE) {
+                //Set the log status as Red
+                this.logStatus = Color.RED;
+                // Copy Application Vector to Local State
+                if (localState == null)
+                    localState = new LocalState();
+                localState.setApplicationState(this.applicationClock);
+                if (this.getNodeID() == ApplicationConstants.DEFAULTNODE_ACTIVE) {
+
+                }
+                // Send Marker Message to its neighbours
+                for (Node neighbour : neighbours) {
+                    Message markerMessage = new MarkerMessage(this);
+                    send(neighbour, markerMessage);
+                }
+                // Mark in coming marker channel as true if received marker is not null
+                if (receivedMarker != null) {
+                    logMap.put(receivedMarker.getSourceNode().getNodeID(), true);
+                    if (isAllMarkerMessageReceived()) {
+                        this.logStatus = Color.BLUE;
+                        SnapshotMessage snapShotMessage = new SnapshotMessage(this.localState, new ArrayList<>(), this);
+                        sendSnapShotToParent(snapShotMessage);
+                    }
+                }
+            } else {
+                logMap.put(receivedMarker.getSourceNode().getNodeID(), true);
+                if (isAllMarkerMessageReceived()) {
+                    this.logStatus = Color.BLUE;
+                    if (this.getNodeID() != ApplicationConstants.DEFAULTNODE_ACTIVE) {
+                        SnapshotMessage snapShotMessage = new SnapshotMessage(this.localState, this.channelStates, this);
+                        sendSnapShotToParent(snapShotMessage);
+                    } else {
+                        this.globalState.addLocalState(localState);
+                        for (ChannelState localChannelState : this.channelStates)
+                            this.globalState.addChannelState(localChannelState);
+
+                        //Check and decide whether resnap needed or Finish Message can be sent
+                        reSnapOrHalt();
+                    }
+                }
+            }
+        }
+    }
+
+    private void sendSnapShotToParent(SnapshotMessage snapshotMessage) {
+        send(this.parentNode, snapshotMessage);
+    }
+
+    private void reSnapOrHalt()
+    {
+        if(this.globalState.getLocalStates().size() == NodeRunner.getTotalNodes())
+        {
+            if(this.globalState.getChannelStates().size() == 0)
+            {
+                // send halt message
+            }
+            else
+            {
+                // restart the snapshot protocol
+            }
+        }
+    }
+    //endregion
+
     //region Public Methods
     private void sendApplicationMessages() {
         Message sendMessage;
@@ -139,6 +218,7 @@ public class Node implements Serializable {
         }
 
     }
+
 
     private void send(Node destinationNode, Message sendMessage) {
         sendControllerMap.get(destinationNode.getNodeID()).send(sendMessage);
@@ -232,7 +312,11 @@ public class Node implements Serializable {
         @Override
         public void run() {
             try {
-                if (incomingMessage instanceof ApplicationMessage) {
+                // if incoming message is marker message
+                if (incomingMessage instanceof MarkerMessage) {
+                    MarkerMessage markerMessage = (MarkerMessage) incomingMessage;
+                    processMarkerMessage(markerMessage);
+                } else if (incomingMessage instanceof ApplicationMessage) { // if incoming message is Application message
                     synchronized (Node.this) {
                         Node.this.activeStatus = (Node.this.sentMessageCount < NodeRunner.getMaxMessages());
                     }
@@ -240,15 +324,38 @@ public class Node implements Serializable {
                     synchronized (Node.this) {
                         for (int i = 0; i < Node.this.applicationClock.length; i++) {
                             Node.this.applicationClock[i] = Math.max(Node.this.applicationClock[i],
-                                    applicationMessage.getSourceNode().applicationClock[i]);
+                                    applicationMessage.messageClock[i]);
                         }
                         Node.this.applicationClock[Node.this.getNodeID()]++;
                     }
+                    // Record Channel State
+                    if (Node.this.logStatus == Color.RED && !Node.this.logMap.get(applicationMessage.getSourceNode().getNodeID())) {
+                        synchronized (Node.this) {
+                            if (Node.this.channelStates == null)
+                                Node.this.channelStates = new ArrayList<>();
+
+                            ChannelState newChannelState = new ChannelState(applicationMessage.getSourceNode(), Node.this, applicationMessage.messageClock);
+                            Node.this.channelStates.add(newChannelState);
+                        }
+                    }
+
                     if (Node.this.activeStatus && Node.this.sentMessageCount < NodeRunner.getMaxMessages())
                         sendApplicationMessages();
+                } else if (incomingMessage instanceof SnapshotMessage) {
+                    SnapshotMessage snapshotMessage = (SnapshotMessage) incomingMessage;
+                    if (Node.this.getNodeID() != ApplicationConstants.DEFAULTNODE_ACTIVE) {
+                        sendSnapShotToParent(snapshotMessage);
+                    } else {
+                        synchronized (Node.this) {
+                            Node.this.globalState.addLocalState(snapshotMessage.getLocalState());
+                            for (ChannelState messageChannelState : snapshotMessage.getChannelStates()) {
+                                Node.this.globalState.addChannelState(messageChannelState);
+                            }
+                        }
+                        reSnapOrHalt();
+                    }
                 }
 
-                if()
             } catch (Exception ex) {
                 ex.printStackTrace();
             }
@@ -259,7 +366,12 @@ public class Node implements Serializable {
 
         @Override
         public void run() {
-
+            try {
+                Thread.sleep(NodeRunner.getSnapShotDelay());
+                startChandyLamportProtocol();
+            } catch (Exception ex) {
+                ex.printStackTrace();
+            }
         }
     }
     //endregion
