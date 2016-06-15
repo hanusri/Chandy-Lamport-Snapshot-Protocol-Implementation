@@ -8,7 +8,6 @@ import java.net.Socket;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Random;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Created by Srikanth on 6/2/2016.
@@ -158,9 +157,8 @@ public class Node implements Serializable {
                         this.globalState.addLocalState(localState);
                         for (ChannelState localChannelState : this.channelStates)
                             this.globalState.addChannelState(localChannelState);
-
-                        //Check and decide whether resnap needed or Finish Message can be sent
-                        reSnapOrHalt();
+                        // print the output
+                        printSnapshotOutput();
                     }
                 }
             }
@@ -171,18 +169,9 @@ public class Node implements Serializable {
         send(this.parentNode, snapshotMessage);
     }
 
-    private void reSnapOrHalt()
-    {
-        if(this.globalState.getLocalStates().size() == NodeRunner.getTotalNodes())
-        {
-            if(this.globalState.getChannelStates().size() == 0)
-            {
-                // send halt message
-            }
-            else
-            {
-                // restart the snapshot protocol
-            }
+    private void printSnapshotOutput() {
+        if (this.globalState.getLocalStates().size() == NodeRunner.getTotalNodes()) {
+            // Print the output in some file.
         }
     }
     //endregion
@@ -341,7 +330,7 @@ public class Node implements Serializable {
 
                     if (Node.this.activeStatus && Node.this.sentMessageCount < NodeRunner.getMaxMessages())
                         sendApplicationMessages();
-                } else if (incomingMessage instanceof SnapshotMessage) {
+                } else if (incomingMessage instanceof SnapshotMessage) { // if incoming message is Snapshot message
                     SnapshotMessage snapshotMessage = (SnapshotMessage) incomingMessage;
                     if (Node.this.getNodeID() != ApplicationConstants.DEFAULTNODE_ACTIVE) {
                         sendSnapShotToParent(snapshotMessage);
@@ -352,7 +341,7 @@ public class Node implements Serializable {
                                 Node.this.globalState.addChannelState(messageChannelState);
                             }
                         }
-                        reSnapOrHalt();
+                        printSnapshotOutput();
                     }
                 }
 

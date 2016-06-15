@@ -69,6 +69,10 @@ class FinishMessage extends Message implements Serializable {
     public FinishMessage() {
         super();
     }
+
+    public FinishMessage(Node sourceNode) {
+        super("", sourceNode);
+    }
 }
 
 class SnapshotMessage extends Message implements Serializable {

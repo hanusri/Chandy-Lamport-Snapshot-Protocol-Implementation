@@ -6,12 +6,6 @@ package utd.com;
 public class ApplicationConstants {
     public static final int INITIAL_THREAD_DELAY = 50000;
     public static final String COMMENT_INDICATOR = "#";
-
     public static int DEFAULTNODE_ACTIVE = 0;
-
-
-    public static final String MESSAGE_ACTUAL = "ACTUAL";
-    public static final String MESSAGE_ACKNOWLEDGEMENT = "ACKNOWLEDGEMENT";
-    public static final String Message_FINAL = "FINAL";
-
+    public static int SYSTEM_EXIT_VALUE = 0;
 }
