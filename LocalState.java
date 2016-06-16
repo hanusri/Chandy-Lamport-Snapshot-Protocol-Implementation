@@ -8,8 +8,11 @@ import java.io.Serializable;
 public class LocalState implements Serializable {
     private int[] applicationState;
 
+    private boolean activeStatus;
+
     LocalState() {
         applicationState = new int[NodeRunner.getTotalNodes()];
+        activeStatus = false;
     }
 
     public int[] getApplicationState() {
@@ -18,5 +21,13 @@ public class LocalState implements Serializable {
 
     public void setApplicationState(int[] applicationState) {
         System.arraycopy(applicationState, 0, this.applicationState, 0, applicationState.length);
+    }
+
+    public boolean isActiveStatus() {
+        return activeStatus;
+    }
+
+    public void setActiveStatus(boolean activeStatus) {
+        this.activeStatus = activeStatus;
     }
 }

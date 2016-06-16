@@ -109,9 +109,9 @@ public class Node implements Serializable {
 
     //region Chandy Lamport Protocol Methods
     private boolean isAllMarkerMessageReceived() {
-        for (Boolean value : logMap.values()) {
-            if (!value)
-                return value;
+        for (Integer nodeId : logMap.keySet()) {
+            if (!logMap.get(nodeId))
+                return false;
         }
         return true;
     }
@@ -129,9 +129,7 @@ public class Node implements Serializable {
                 if (localState == null)
                     localState = new LocalState();
                 localState.setApplicationState(this.applicationClock);
-                if (this.getNodeID() == ApplicationConstants.DEFAULTNODE_ACTIVE) {
-
-                }
+                localState.setActiveStatus(this.activeStatus);
                 // Send Marker Message to its neighbours
                 for (Node neighbour : neighbours) {
                     Message markerMessage = new MarkerMessage(this);
@@ -167,11 +165,63 @@ public class Node implements Serializable {
 
     private void sendSnapShotToParent(SnapshotMessage snapshotMessage) {
         send(this.parentNode, snapshotMessage);
+        resetOtherNodes();
     }
 
     private void printSnapshotOutput() {
         if (this.globalState.getLocalStates().size() == NodeRunner.getTotalNodes()) {
             // Print the output in some file.
+            reSnapOrExitApplication();
+        }
+    }
+
+    private void reSnapOrExitApplication() {
+        if (isApplicationPassive()) {
+            sendFinishMessage();
+        } else {
+            reSnapProtocol();
+        }
+    }
+
+    private void reSnapProtocol() {
+        logStatus = Color.BLUE;
+        localState = new LocalState();
+        channelStates = new ArrayList<>();
+        globalState = new GlobalState();
+        initializeLogMap();
+        new Thread(new ChandyLamportThread()).start();
+    }
+
+    private void resetOtherNodes() {
+        synchronized (this) {
+            this.localState = new LocalState();
+            this.channelStates = new ArrayList<>();
+            initializeLogMap();
+        }
+    }
+
+    private void sendFinishMessage() {
+        for (Node neighbour : this.neighbours) {
+            FinishMessage finishMessage = new FinishMessage(this);
+            send(neighbour, finishMessage);
+        }
+
+        System.exit(0);
+    }
+
+    private boolean isApplicationPassive() {
+        for (LocalState nodeLocalState : this.globalState.getLocalStates()) {
+            if (nodeLocalState.isActiveStatus())
+                return false;
+        }
+
+        return true;
+    }
+
+    private void initializeLogMap() {
+        this.logMap = new HashMap<>();
+        for (Node neighbourNode : this.neighbours) {
+            this.logMap.put(neighbourNode.nodeID, false);
         }
     }
     //endregion
@@ -221,10 +271,11 @@ public class Node implements Serializable {
         if (sendControllerMap == null)
             sendControllerMap = new HashMap<>();
 
-        for (Integer key : NodeRunner.getNodeDictionary().keySet()) {
-            sendControllerMap.put(key, new SendController(NodeRunner.getNodeDictionary().get(key)));
-            logMap.put(key, false);
+        for (Node neighbourNode : this.neighbours) {
+            sendControllerMap.put(neighbourNode.nodeID, new SendController(neighbourNode));
         }
+
+        initializeLogMap();
     }
 
     public void initializeNode() {
@@ -343,6 +394,8 @@ public class Node implements Serializable {
                         }
                         printSnapshotOutput();
                     }
+                } else if (incomingMessage instanceof FinishMessage) {
+                    sendFinishMessage();
                 }
 
             } catch (Exception ex) {
