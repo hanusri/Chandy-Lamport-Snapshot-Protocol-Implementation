@@ -28,6 +28,7 @@ public class Node implements Serializable {
     private GlobalState globalState;
     private HashMap<Integer, Boolean> logMap;
 
+
     //region Constructors
     public Node(int nodeID) {
         this.nodeID = nodeID;
@@ -322,6 +323,7 @@ public class Node implements Serializable {
         @Override
         public void run() {
             try {
+                System.out.print("Started Listening from " + nodeID);
                 serverSocket = new ServerSocket(getPort());
                 while (true) {
                     socket = serverSocket.accept();
