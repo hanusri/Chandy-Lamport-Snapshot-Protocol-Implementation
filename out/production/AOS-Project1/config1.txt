@@ -1,0 +1,7 @@
+2 1 3 300 2000 5
+
+0 localhost 30001
+1 localhost 30002
+
+1 # neighbours of node 0
+0 # neighbours of node 1

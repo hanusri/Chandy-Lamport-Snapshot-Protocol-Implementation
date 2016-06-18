@@ -1,0 +1,19 @@
+8 1 3 1000 2000 5
+
+0 localhost 30001
+1 localhost 30002
+2 localhost 30003
+3 localhost 30004
+4 localhost 30005
+5 localhost 30006
+6 localhost 30007
+7 localhost 30008
+
+1 2 # neighbours of node 0
+3 # neighbours of node 1
+4 # neighbours of node 2
+2 5 # neighbours of node 3
+3 # neighbours of node 4
+6 # neighbours of node 5
+4 7 # neighbours of node 6
+0 # neighbours of node 7

@@ -34,6 +34,31 @@ public class SendController {
             Socket socket = new Socket(this.destination.getIpAddress(), this.destination.getPort());
             ObjectOutputStream outStream = new ObjectOutputStream(socket.getOutputStream());
             outStream.writeObject(sendMessage);
+
+            LogWriter log = new LogWriter( sendMessage.getSourceNode().getNodeID() );
+            log.setSentTimeStamp(System.nanoTime());
+            log.setReceivedTimeStamp(System.nanoTime());
+            log.setSentNode( sendMessage.getSourceNode().getNodeID() );
+            log.setReceivedNode( destination.getNodeID() );
+            String message = "";
+
+            if(sendMessage instanceof ApplicationMessage){
+                message = "APPL";
+            }
+            else if(sendMessage instanceof FinishMessage){
+                message = "FINS";
+            }
+            else if(sendMessage instanceof MarkerMessage){
+                message = "MRKR";
+            }
+            else if(sendMessage instanceof SnapshotMessage) {
+                message = "SNPS";
+            }
+
+            log.setMessageType(message);
+            log.write();
+
+
             outStream.close();
             socket.close();
         } catch (Exception ex) {
