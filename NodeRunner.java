@@ -17,6 +17,7 @@ public class NodeRunner {
     private static int maxPerActive;
     private static int minSendDelay;
     private static int snapShotDelay;
+    private static String configFileName;
 
 
     public NodeRunner() {
@@ -47,11 +48,20 @@ public class NodeRunner {
         return snapShotDelay;
     }
 
+    public static String getConfigFileName() {
+        return configFileName;
+    }
+
+    public static void setConfigFileName(String configFileName) {
+        NodeRunner.configFileName = configFileName;
+    }
+
     public static HashMap<Integer, Node> getNodeDictionary() {
         return nodeDictionary;
     }
 
     private static ArrayList<ArrayList<Integer>> readFile(String fileName) throws IOException {
+        configFileName = fileName.substring(0, fileName.lastIndexOf('.'));
         File file = new File(fileName);
         FileReader fileReader = new FileReader(file);
         BufferedReader bufferedFile = new BufferedReader(fileReader);

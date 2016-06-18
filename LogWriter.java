@@ -19,11 +19,11 @@ public class LogWriter {
     FileWriter fileWritter;
     BufferedWriter bufferWritter;
 
-    public LogWriter(int node) throws IOException{
+    public LogWriter(int node) throws IOException {
 
         this.time = System.nanoTime();
-        File outputFile = new File("log"+ node +".txt" );
-        fileWritter = new FileWriter(outputFile.getName(),true);
+        File outputFile = new File("log" + node + ".txt");
+        fileWritter = new FileWriter(outputFile.getName(), true);
         bufferWritter = new BufferedWriter(fileWritter);
 
         if (!outputFile.exists()) {

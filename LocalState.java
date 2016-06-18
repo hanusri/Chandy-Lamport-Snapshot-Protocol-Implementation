@@ -7,8 +7,8 @@ import java.io.Serializable;
  */
 public class LocalState implements Serializable {
     private int[] applicationState;
-
     private boolean activeStatus;
+    private int nodeID;
 
     LocalState() {
         applicationState = new int[NodeRunner.getTotalNodes()];
@@ -29,5 +29,13 @@ public class LocalState implements Serializable {
 
     public void setActiveStatus(boolean activeStatus) {
         this.activeStatus = activeStatus;
+    }
+
+    public int getNodeID() {
+        return nodeID;
+    }
+
+    public void setNodeID(int nodeID) {
+        this.nodeID = nodeID;
     }
 }

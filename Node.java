@@ -131,6 +131,7 @@ public class Node implements Serializable {
                     localState = new LocalState();
                 localState.setApplicationState(this.applicationClock);
                 localState.setActiveStatus(this.activeStatus);
+                localState.setNodeID(this.nodeID);
                 // Send Marker Message to its neighbours
                 for (Node neighbour : neighbours) {
                     Message markerMessage = new MarkerMessage(this);
@@ -164,16 +165,17 @@ public class Node implements Serializable {
         }
     }
 
+    private void printSnapshotOutput() {
+        if (this.globalState.getLocalStates().size() == NodeRunner.getTotalNodes()) {
+            OutputFileWriter snapShotwriter = new OutputFileWriter(this.globalState);
+            snapShotwriter.writeSnapShotOutput();
+            reSnapOrExitApplication();
+        }
+    }
+
     private void sendSnapShotToParent(SnapshotMessage snapshotMessage) {
         send(this.parentNode, snapshotMessage);
         resetOtherNodes();
-    }
-
-    private void printSnapshotOutput() {
-        if (this.globalState.getLocalStates().size() == NodeRunner.getTotalNodes()) {
-            // Print the output in some file.
-            reSnapOrExitApplication();
-        }
     }
 
     private void reSnapOrExitApplication() {
@@ -284,9 +286,9 @@ public class Node implements Serializable {
         new Thread(new ListenerThread()).start();
 
         try {
-            // Put the main thread in sleep for few seconds
-            Thread.sleep(ApplicationConstants.INITIAL_THREAD_DELAY);
             if (nodeID == ApplicationConstants.DEFAULTNODE_ACTIVE) {
+                // Put the main thread in sleep for few seconds
+                Thread.sleep(ApplicationConstants.INITIAL_THREAD_DELAY);
                 sendApplicationMessages();
                 new Thread(new ChandyLamportThread()).start();
             }
