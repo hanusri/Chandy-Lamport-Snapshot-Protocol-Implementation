@@ -18,10 +18,11 @@ public class NodeRunner {
     private static int minSendDelay;
     private static int snapShotDelay;
     private static String configFileName;
-
+    private static ArrayList<GlobalState> globalStates;
 
     public NodeRunner() {
         nodeDictionary = new HashMap<>();
+        globalStates = new ArrayList<>();
     }
 
     public static int getTotalNodes() {
@@ -54,6 +55,17 @@ public class NodeRunner {
 
     public static void setConfigFileName(String configFileName) {
         NodeRunner.configFileName = configFileName;
+    }
+
+    public static ArrayList<GlobalState> getGlobalStates() {
+        return globalStates;
+    }
+
+    public static void addGlobalStates(GlobalState globalState) {
+        if(globalStates == null)
+            globalStates = new ArrayList<>();
+
+        globalStates.add(globalState);
     }
 
     public static HashMap<Integer, Node> getNodeDictionary() {
@@ -133,6 +145,7 @@ public class NodeRunner {
                             Node neighbour = nodeDictionary.get(neighbourId);
                             neighbour.setParentNode(parent);
                             visited[neighbourId] = true;
+                            queue.add(neighbourId);
                         }
                     }
                 }
