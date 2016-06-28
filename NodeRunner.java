@@ -177,7 +177,7 @@ public class NodeRunner {
             currentNode.setNodeNeighbour(neighbourNodes);
 
             // set up current node; close socket is pending
-            currentNode.setUpNeighbourMap();
+            currentNode.initializeLogMap();
             currentNode.initializeNode();
 
         } catch (Exception ex) {

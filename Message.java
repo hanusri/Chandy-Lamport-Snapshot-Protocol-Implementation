@@ -7,6 +7,7 @@ import java.util.ArrayList;
 
 /**
  * Created by Srikanth on 6/2/2016.
+ *
  */
 public class Message implements Serializable {
     private String message;
@@ -20,7 +21,6 @@ public class Message implements Serializable {
     public Message(String message, Node sourceNode) {
         this.message = message;
         this.sourceNode = sourceNode;
-
     }
 
     public String getMessage() {

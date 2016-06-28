@@ -4,6 +4,7 @@ import java.io.Serializable;
 
 /**
  * Created by Srikanth on 6/11/2016.
+ * This class holds local state of a node during a snapshot
  */
 public class LocalState implements Serializable {
     private int[] applicationState;

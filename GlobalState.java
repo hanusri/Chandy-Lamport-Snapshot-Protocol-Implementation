@@ -5,6 +5,7 @@ import java.util.ArrayList;
 
 /**
  * Created by Srikanth on 6/11/2016.
+ * This class holds global state of single snapshot
  */
 public class GlobalState implements Serializable {
     private ArrayList<LocalState> localStates;
@@ -43,5 +44,13 @@ public class GlobalState implements Serializable {
             localStates = new ArrayList<>();
 
         localStates.add(localState);
+    }
+
+    public LocalState getLocalStateByNodeId(int nodeId) {
+        for (LocalState localState : this.localStates) {
+            if (localState.getNodeID() == nodeId)
+                return localState;
+        }
+        return null;
     }
 }

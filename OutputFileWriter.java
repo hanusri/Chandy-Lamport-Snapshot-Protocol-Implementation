@@ -31,7 +31,8 @@ public class OutputFileWriter {
             try {
                 for (GlobalState globalState : this.globalStates) {
                     for (LocalState localState : globalState.getLocalStates()) {
-                        String fileName = NodeRunner.getConfigFileName() + "-" + localState.getNodeID() + ApplicationConstants.OUTPUTFILE_TYPE;
+                        String fileName = NodeRunner.getConfigFileName() + "-" + localState.getNodeID() +
+                                ApplicationConstants.OUTPUTFILE_TYPE;
                         File file = new File(fileName);
                         FileWriter fileWriter;
                         boolean fileExists = false;
@@ -55,8 +56,7 @@ public class OutputFileWriter {
                     }
                 }
             } catch (IOException ex) {
-                System.out.println("Error writing to file '" + "" + "'");
-                // Or we could just do this: ex.printStackTrace();
+               ex.printStackTrace();
             }
         }
     }
